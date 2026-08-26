@@ -1,0 +1,16 @@
+# Local cleanup notes and forensic artifacts
+/cleanup/
+
+# Per-machine configuration; use wifi-network-config.example.yaml as the template
+/wifi-network-config.yaml
+
+# Installer/apply transcripts and runtime logs
+/*.log
+/*.transcript
+**/logs/
+
+# PowerShell/editor/OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

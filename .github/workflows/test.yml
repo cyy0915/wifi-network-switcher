@@ -1,0 +1,26 @@
+name: PowerShell tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          Install-Module Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99 -Force -Scope CurrentUser
+
+      - name: Run smoke tests
+        shell: pwsh
+        run: ./tests/run-smoke-tests.ps1
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: Invoke-Pester ./tests/WifiNetworkSwitcher.Tests.ps1 -Output Detailed
