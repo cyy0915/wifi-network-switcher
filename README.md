@@ -233,13 +233,6 @@ Invoke-Pester .\tests\WifiNetworkSwitcher.Tests.ps1 -Output Detailed
 
 GitHub Actions 会在 Windows runner 上执行烟雾测试和 Pester 测试。真实网络验收应使用可恢复的测试 Wi-Fi，并提前确认静态 IP、CIDR、网关和 DNS 正确。
 
-## 发布与隐私
-
-- `wifi-network-config.yaml` 包含本机接口 GUID、SSID 和网络地址，已被 Git 忽略，不应提交。
-- `wifi-network-config.example.yaml` 仅供多网卡或手工配置时参考，不是正常安装的必需步骤。
-- 根目录的安装/应用 transcript、ProgramData 日志和 `cleanup/` 调查材料都已被 Git 忽略。
-- 发布前请检查 `git status`，避免提交本机网络信息。
-
 ## License
 
 本项目以 [MIT License](LICENSE) 发布。
