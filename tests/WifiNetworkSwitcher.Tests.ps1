@@ -62,6 +62,28 @@ Describe 'Wi-Fi network configuration model' {
         (Get-WnsPolicyForSsid $config Office).Policy.dns.servers | Should -Be @('10.0.0.2', '198.18.0.2')
     }
 
+    It 'rejects static IPv4 combined with DHCP DNS after inheritance' {
+        $data = New-TestConfig
+        $data.defaults.dns = [ordered]@{ mode = 'dhcp' }
+        $data.networks = [ordered]@{
+            Office = [ordered]@{
+                ip = [ordered]@{ mode = 'static'; address = '192.168.10.20/24'; gateway = '192.168.10.1' }
+            }
+        }
+        { Test-WnsConfigurationData $data } | Should -Throw '*cannot combine static IPv4 with DHCP DNS*'
+    }
+
+    It 'rejects static IPv4 combined with explicitly selected DHCP DNS' {
+        $networks = [ordered]@{
+            Office = [ordered]@{
+                ip = [ordered]@{ mode = 'static'; address = '192.168.10.20/24'; gateway = '192.168.10.1' }
+                dns = [ordered]@{ mode = 'dhcp' }
+            }
+        }
+        { Test-WnsConfigurationData (New-TestConfig $networks) } |
+            Should -Throw '*cannot combine static IPv4 with DHCP DNS*'
+    }
+
     It 'rejects unknown fields' {
         $data = New-TestConfig
         $data.defaults.ip.command = 'anything'
@@ -187,5 +209,10 @@ Describe 'Scheduled task security definition' {
         $installer | Should -Match '<LogonTrigger>'
         $installer | Should -Match '<SessionStateChangeTrigger>'
         $installer | Should -Match 'Power-Troubleshooter'
+    }
+
+    It 'generates a safe DHCP IP and DHCP DNS configuration on first install' {
+        $installer | Should -Not -Match '198\.18\.0\.2'
+        $installer | Should -Match '(?s)defaults:\s+ip:\s+mode: dhcp\s+dns:\s+mode: dhcp'
     }
 }

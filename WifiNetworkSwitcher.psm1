@@ -175,9 +175,14 @@ function Resolve-WnsPolicy {
     Assert-WnsAllowedKeys $merged @('ip', 'dns') $Path
     if (-not $merged.Contains('ip')) { throw "$Path.ip is required after inheritance." }
     if (-not $merged.Contains('dns')) { throw "$Path.dns is required after inheritance." }
-    [ordered]@{
-        ip = Test-WnsIpPolicy $merged.ip "$Path.ip"
-        dns = Test-WnsDnsPolicy $merged.dns "$Path.dns"
+    $ipPolicy = Test-WnsIpPolicy $merged.ip "$Path.ip"
+    $dnsPolicy = Test-WnsDnsPolicy $merged.dns "$Path.dns"
+    if ($ipPolicy.mode -eq 'static' -and $dnsPolicy.mode -eq 'dhcp') {
+        throw "$Path cannot combine static IPv4 with DHCP DNS. Configure dns.mode as 'static' and provide one or more DNS server addresses."
+    }
+    return [ordered]@{
+        ip = $ipPolicy
+        dns = $dnsPolicy
     }
 }
 

@@ -1,8 +1,10 @@
 version: 1
 
 adapter:
-  # Replace this with the InterfaceGuid of your Wi-Fi adapter.
-  # Find it with: Get-NetAdapter | Format-Table Name, Status, InterfaceGuid
+  # install.ps1 normally creates wifi-network-config.yaml and fills this GUID
+  # automatically. Only replace this value when creating a configuration
+  # manually (for example, when the machine has multiple Wi-Fi adapters).
+  # Find candidates with: Get-NetAdapter | Format-Table Name, Status, InterfaceGuid
   interfaceGuid: "{00000000-0000-0000-0000-000000000001}"
 
 defaults:
@@ -22,6 +24,7 @@ networks: {}
 #       address: "192.168.10.20/24"
 #       gateway: "192.168.10.1"
 #     dns:
+#       # Static IPv4 requires static DNS; DHCP DNS is rejected.
 #       mode: static
 #       servers:
 #         - "192.168.10.2"
