@@ -1,4 +1,4 @@
-BeforeAll {
+﻿BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..\WifiNetworkSwitcher.psm1') -Force
 
     function New-TestConfig {
@@ -214,5 +214,21 @@ Describe 'Scheduled task security definition' {
     It 'generates a safe DHCP IP and DHCP DNS configuration on first install' {
         $installer | Should -Not -Match '198\.18\.0\.2'
         $installer | Should -Match '(?s)defaults:\s+ip:\s+mode: dhcp\s+dns:\s+mode: dhcp'
+    }
+}
+
+Describe 'IPv4 policy store cleanup' {
+    It 'cleans persistent and active entries before recreating an address' {
+        InModuleScope WifiNetworkSwitcher {
+            Mock Get-NetRoute { @() }
+            Mock Get-NetIPAddress { @() }
+            Mock Remove-NetRoute {}
+            Mock Remove-NetIPAddress {}
+            Remove-WnsManagedIpv4 ([pscustomobject]@{ ifIndex = 7 })
+            Should -Invoke Get-NetIPAddress -Times 1 -Exactly -ParameterFilter { $PolicyStore -eq 'PersistentStore' }
+            Should -Invoke Get-NetIPAddress -Times 1 -Exactly -ParameterFilter { $PolicyStore -eq 'ActiveStore' }
+            Should -Invoke Get-NetRoute -Times 1 -Exactly -ParameterFilter { $PolicyStore -eq 'PersistentStore' }
+            Should -Invoke Get-NetRoute -Times 1 -Exactly -ParameterFilter { $PolicyStore -eq 'ActiveStore' }
+        }
     }
 }

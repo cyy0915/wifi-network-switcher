@@ -1,4 +1,4 @@
-[CmdletBinding(DefaultParameterSetName = 'Apply')]
+﻿[CmdletBinding(DefaultParameterSetName = 'Apply')]
 param(
     [Parameter(Mandatory)][string]$ConfigPath,
     [string]$Trigger = 'Manual',
@@ -67,8 +67,7 @@ try {
     }
     $selection = Get-WnsPolicyForSsid -Configuration $configuration -Ssid $ssid
     & $log 'INFO' "SSID='$ssid'; matched rule='$($selection.RuleName)'; default=$($selection.IsDefault)."
-    Invoke-WnsPolicy -Adapter $adapter -Policy $selection.Policy -Log $log | Out-Null
-    $state = Get-WnsNetworkState $adapter
+    $state = Invoke-WnsPolicy -Adapter $adapter -Policy $selection.Policy -Log $log
     $addresses = @($state.Addresses | ForEach-Object { "$($_.IPAddress)/$($_.PrefixLength)" }) -join ', '
     $gateways = @($state.Routes | ForEach-Object { $_.NextHop }) -join ', '
     $dns = @($state.DnsServers) -join ', '

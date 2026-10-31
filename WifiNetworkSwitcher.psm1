@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 $script:YamlModuleVersion = '0.4.12'
 $script:MaxConfigBytes = 256KB
@@ -495,11 +495,15 @@ function Test-WnsDesiredState {
 function Remove-WnsManagedIpv4 {
     param([Parameter(Mandatory)]$Adapter)
     $index = [uint32]$Adapter.ifIndex
-    Get-NetRoute -InterfaceIndex $index -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
-        Remove-NetRoute -Confirm:$false -ErrorAction Stop
-    Get-NetIPAddress -InterfaceIndex $index -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
-        Remove-NetIPAddress -Confirm:$false -ErrorAction Stop
+    # New-NetIPAddress writes to both stores by default. Remove persistent entries
+    # first, then re-query active entries (persistent deletion may propagate).
+    foreach ($store in @('PersistentStore', 'ActiveStore')) {
+        Get-NetRoute -InterfaceIndex $index -AddressFamily IPv4 -PolicyStore $store -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Remove-NetRoute -Confirm:$false -ErrorAction Stop
+        Get-NetIPAddress -InterfaceIndex $index -AddressFamily IPv4 -PolicyStore $store -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
+            Remove-NetIPAddress -Confirm:$false -ErrorAction Stop
+    }
 }
 
 function Set-WnsPolicy {
@@ -578,7 +582,9 @@ function Invoke-WnsPolicy {
         [Parameter(Mandatory)][System.Collections.IDictionary]$Policy,
         [Parameter(Mandatory)][scriptblock]$Log
     )
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     $snapshot = Get-WnsNetworkState $Adapter
+    & $Log 'INFO' "Snapshot read in $($timer.ElapsedMilliseconds) ms. DHCP=$($snapshot.DhcpEnabled); addresses=$(@($snapshot.Addresses).Count); gateways=$(@($snapshot.Routes).Count)."
     $changeIp = -not (Test-WnsIpDesiredState $snapshot $Policy)
     $changeDns = -not (Test-WnsDnsDesiredState $snapshot $Policy)
     if (-not $changeIp -and -not $changeDns) {
@@ -590,16 +596,19 @@ function Invoke-WnsPolicy {
     if ($changeDns) { $changes += "DNS mode '$($Policy.dns.mode)'" }
     & $Log 'INFO' "Applying $($changes -join ' and ')."
     try {
+        $timer.Restart()
         Set-WnsPolicy $Adapter $Policy -ChangeIp:$changeIp -ChangeDns:$changeDns
+        & $Log 'INFO' "Network writes completed in $($timer.ElapsedMilliseconds) ms."
+        $timer.Restart()
         $verified = $false
         $current = $null
         foreach ($attempt in 1..15) {
-            Start-Sleep -Seconds 2
+            if ($attempt -gt 1) { Start-Sleep -Seconds 2 }
             $current = Get-WnsNetworkState $Adapter
             if (Test-WnsDesiredState $current $Policy) { $verified = $true; break }
         }
         if (-not $verified) { throw 'Post-change verification did not match the desired IPv4/DNS state.' }
-        & $Log 'INFO' 'Network state was applied and verified successfully.'
+        & $Log 'INFO' "Network state was applied and verified successfully in $($timer.ElapsedMilliseconds) ms."
         return $current
     } catch {
         $originalError = $_
